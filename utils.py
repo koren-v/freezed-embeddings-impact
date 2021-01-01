@@ -30,8 +30,6 @@ def pad_sequence(sequence_batch, max_seq_length, pad_token_id):
     padded_sequences = []
     attention_masks = []
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     attend, no_attend = 1, 0
 
     for sequence in sequence_batch:
@@ -46,7 +44,7 @@ def pad_sequence(sequence_batch, max_seq_length, pad_token_id):
         padded_sequences.append(new_sequence)
         attention_masks.append(attention_mask)
 
-    padded_sequences = torch.tensor(padded_sequences, device=device)
-    attention_masks = torch.tensor(attention_masks, device=device)
+    padded_sequences = torch.tensor(padded_sequences)
+    attention_masks = torch.tensor(attention_masks)
 
     return padded_sequences, attention_masks
