@@ -1,6 +1,7 @@
 import more_itertools
 
 import numpy as np
+import torch
 from torch.utils.data import Dataset, DataLoader, Sampler
 
 from utils import optimal_num_of_loader_workers, pad_sequence
@@ -94,7 +95,7 @@ class Collate:
         )
 
         if self._targets is not None:
-            output = input_ids, attention_mask, targets
+            output = input_ids, attention_mask, torch.tensor(targets)
         else:
             output = input_ids, attention_mask
 

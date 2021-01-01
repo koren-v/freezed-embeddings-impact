@@ -52,8 +52,6 @@ class Learner:
 
             for step, batch in enumerate(dataloader):
 
-                import pdb
-                pdb.set_trace()
                 batch = self._batch_to_device(batch)
                 labels = batch[-1]
 
