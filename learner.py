@@ -6,8 +6,7 @@ from torch.nn.utils import clip_grad_norm_
 
 class Learner:
     def __init__(self, model, optimizer, loss_function, metric,
-                 experiment_name, logger,
-                 scheduler=None, grad_accumulation_step=1, **kwargs):
+                 logger, scheduler=None, grad_accumulation_step=1, **kwargs):
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -17,7 +16,6 @@ class Learner:
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.device = device
-        self.experiment_name = experiment_name
         self.grad_accumulation_step = grad_accumulation_step
         self.logger = logger
 
