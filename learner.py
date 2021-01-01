@@ -4,7 +4,7 @@ import torch
 from torch.nn.utils import clip_grad_norm_
 
 
-class BaseLearner:
+class Learner:
     def __init__(self, model, optimizer, loss_function, metric,
                  experiment_name, logger,
                  scheduler=None, grad_accumulation_step=1, **kwargs):
