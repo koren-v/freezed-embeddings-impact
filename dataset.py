@@ -93,9 +93,6 @@ class Collate:
             pad_token_id=self._pad_token_id
         )
 
-        import pdb
-        pdb.set_trace()
-
         if self._targets is not None:
             output = input_ids, attention_mask, targets
         else:
