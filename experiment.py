@@ -44,6 +44,10 @@ class Experiment:
         config = AutoConfig.from_pretrained(self._pretrained_model)
         config.num_labels = self._num_classes
 
+        max_train_steps = self._get_max_steps(
+            dataloaders_dicts, self._num_epochs, self._grad_accumulation_step
+        )
+
         for experiment_name, train_loader in dataloaders_dicts.items():
 
             for freeze_embedding in True, False:
@@ -54,18 +58,15 @@ class Experiment:
 
                 model.base_model.embeddings.requires_grad_(not freeze_embedding)
 
-                base_optimizer = RAdam(
+                optimizer = RAdam(
                     [
                         {"params": model.base_model.parameters(), "lr": self._base_model_lr},
                         {"params": model.classifier.parameters(), "lr": self._classifier_lr}
                     ]
                 )
 
-                optimizer = Lookahead(base_optimizer)
-
-                num_training_steps = self._num_epochs * len(train_loader) / self._grad_accumulation_step
                 scheduler = get_linear_schedule_with_warmup(
-                    optimizer, num_warmup_steps=0, num_training_steps=num_training_steps
+                    optimizer, num_warmup_steps=0, num_training_steps=max_train_steps
                 )
 
                 comment = f"{experiment_name}_freeze_embeddings_{freeze_embedding}".lower()
@@ -83,7 +84,12 @@ class Experiment:
                 )
 
                 learner.fit(
-                    num_epochs=self._num_epochs,
-                    dataloaders_dict=dict(train=train_loader, valid=self._validation_loader)
+                    dataloaders_dict=dict(train=train_loader, valid=self._validation_loader),
+                    max_steps=max_train_steps,
+                    num_epochs=None,
                 )
 
+    @staticmethod
+    def _get_max_steps(train_loaders_dict, num_epochs, grad_accumulation_step):
+        max_epoch_steps = max(len(loader) for loader in train_loaders_dict.values())
+        return int(num_epochs * max_epoch_steps / grad_accumulation_step)
