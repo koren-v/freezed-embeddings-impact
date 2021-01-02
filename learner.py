@@ -1,5 +1,3 @@
-from tqdm import tqdm
-
 import torch
 from torch.nn.utils import clip_grad_norm_
 
@@ -20,22 +18,31 @@ class Learner:
         self._logger = logger
 
         self.kwargs = kwargs
+        self._steps = 0
 
-    def fit(self, num_epochs, dataloaders_dict):
+    def fit(self, dataloaders_dict, *, num_epochs=None, max_steps=None):
 
         phases = "train", "valid"
+
+        assert (num_epochs is None) != (max_steps is None), \
+            "You must specify num_epochs or max_steps argument"
+
+        if num_epochs is None:
+            num_epochs = max_steps // len(dataloaders_dict["train"]) + 1
 
         for epoch in range(1, num_epochs + 1):
 
             for phase in phases:
 
                 loader = dataloaders_dict[phase]
-                epoch_dict = self.epoch(phase=phase, dataloader=loader)
+                epoch_dict = self.epoch(phase=phase, dataloader=loader, max_steps=max_steps)
 
                 self._logger.add_scalar("{} Epoch Loss".format(phase.title()), epoch_dict["epoch_loss"], epoch)
                 self._logger.add_scalar("{} Epoch Metric".format(phase.title()), epoch_dict["epoch_metric"], epoch)
 
-    def epoch(self, phase, dataloader):
+        self._logger.close()
+
+    def epoch(self, phase, dataloader, max_steps=None):
 
         self._model.train() if phase == "train" else self._model.eval()
 
@@ -46,6 +53,11 @@ class Learner:
         epoch_labels = []
 
         for step, batch in enumerate(dataloader):
+
+            if phase == "train":
+                self._steps += 1
+                if self._steps > max_steps:
+                    break
 
             batch = self._batch_to_device(batch)
             labels = batch[-1]
@@ -70,10 +82,9 @@ class Learner:
                         self._optimizer.step()
                         if self._scheduler is not None:
                             self._scheduler.step()
-                        self._optimizer.zero_grad()
                         self._log_layer_grads(step=step)
+                        self._optimizer.zero_grad()
 
-            # collecting raw outputs to find top losses examples
             epoch_logits.extend(outputs.detach().cpu().tolist())
             epoch_labels.extend(labels.detach().cpu().tolist())
 
@@ -106,6 +117,30 @@ class Learner:
         return loss
 
     def _log_layer_grads(self, step):
-        for name, weight in self._model.named_parameters():
-            if weight.grad is not None:
-                self._logger.add_histogram(f"{name}.grad", weight.grad, step)
+        # embeddings
+        embeddings_grads = torch.tensor([], device=self._device)
+        for parameter in self._model.base_model.embeddings.parameters():
+            if parameter.grad is not None:
+                flattened_grads = parameter.grad.clone().reshape(-1)
+                embeddings_grads = torch.cat((embeddings_grads, flattened_grads))
+        if len(embeddings_grads) > 0:
+            self._logger.add_histogram("Embeddings Gradients", embeddings_grads, step)
+
+        # layers
+        for i, layer in enumerate(self._model.base_model.encoder.layer):
+            layer_grads = torch.tensor([], device=self._device)
+            for parameter in layer.parameters():
+                if parameter.grad is not None:
+                    flattened_grads = parameter.grad.clone().reshape(-1)
+                    layer_grads = torch.cat((layer_grads, flattened_grads))
+            if len(layer_grads) > 0:
+                self._logger.add_histogram(f"Layer {i+1} Gradients", layer_grads, step)
+
+        # classifier
+        classifier_grads = torch.tensor([], device=self._device)
+        for parameter in self._model.classifier.parameters():
+            if parameter.grad is not None:
+                flattened_grads = parameter.grad.clone().reshape(-1)
+                classifier_grads = torch.cat((classifier_grads, flattened_grads))
+        if len(classifier_grads) > 0:
+            self._logger.add_histogram("Classifier Gradients", classifier_grads, step)
