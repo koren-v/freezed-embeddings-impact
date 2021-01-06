@@ -1,10 +1,13 @@
+from tqdm import tqdm
+
 import torch
 from torch.nn.utils import clip_grad_norm_
 
 
 class Learner:
     def __init__(self, model, optimizer, loss_function, metric,
-                 logger, scheduler=None, grad_accumulation_step=1, **kwargs):
+                 logger, scheduler=None, grad_accumulation_step=1,
+                 log_grads_every=10, **kwargs):
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -16,6 +19,7 @@ class Learner:
         self._device = device
         self._grad_accumulation_step = grad_accumulation_step
         self._logger = logger
+        self._log_grads_every = log_grads_every
 
         self.kwargs = kwargs
         self._steps = 0
@@ -30,12 +34,14 @@ class Learner:
         if num_epochs is None:
             num_epochs = max_steps // len(dataloaders_dict["train"]) + 1
 
-        for epoch in range(1, num_epochs + 1):
+        for epoch in tqdm(range(1, num_epochs + 1)):
 
             for phase in phases:
 
                 loader = dataloaders_dict[phase]
                 epoch_dict = self.epoch(phase=phase, dataloader=loader, max_steps=max_steps)
+                if epoch_dict is None:
+                    break
 
                 self._logger.add_scalar("{} Epoch Loss".format(phase.title()), epoch_dict["epoch_loss"], epoch)
                 self._logger.add_scalar("{} Epoch Metric".format(phase.title()), epoch_dict["epoch_metric"], epoch)
@@ -57,7 +63,7 @@ class Learner:
             if phase == "train":
                 self._steps += 1
                 if self._steps > max_steps:
-                    break
+                    return
 
             batch = self._batch_to_device(batch)
             labels = batch[-1]
@@ -77,12 +83,15 @@ class Learner:
                     if self.kwargs.get("clip_grad_norm") is not None:
                         clip_grad_norm_(self._model.parameters(), self.kwargs["clip_grad_norm"])
 
+                    # log grads
+                    if (step + 1) % self._log_grads_every == 0:
+                        self._log_layer_grads(step=step)
+
                     # optimizer.step()
                     if (step + 1) % self._grad_accumulation_step == 0:
                         self._optimizer.step()
                         if self._scheduler is not None:
                             self._scheduler.step()
-                        self._log_layer_grads(step=step)
                         self._optimizer.zero_grad()
 
             epoch_logits.extend(outputs.detach().cpu().tolist())

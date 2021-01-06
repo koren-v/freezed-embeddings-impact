@@ -28,8 +28,8 @@ class DynamicPaddingDataset(Dataset):
 
     def get_dataloader(self, batch_size, max_length, pad_token_id):
 
-        self.sampler = Sampler(data_source=self._data,
-                               batch_size=batch_size)
+        self.sampler = DynamicPaddingSampler(data_source=self._data,
+                                             batch_size=batch_size)
 
         collate_fn = Collate(targets=self._targets,
                              max_length=max_length,
@@ -45,7 +45,7 @@ class DynamicPaddingDataset(Dataset):
         return dataloader
 
 
-class Sampler(Sampler):
+class DynamicPaddingSampler(Sampler):
 
     @property
     def backsort_inds(self):
@@ -55,6 +55,7 @@ class Sampler(Sampler):
         return self._backsort_inds
 
     def __init__(self, data_source, batch_size):
+        super(DynamicPaddingSampler, self).__init__(data_source)
         sample_lengths = [len(seq) for seq in data_source]
         argsort_inds = np.argsort(sample_lengths)
 

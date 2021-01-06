@@ -1,4 +1,5 @@
 from typing import Dict
+import os
 
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -9,7 +10,7 @@ from transformers import (
     get_linear_schedule_with_warmup
 )
 
-from optimization import RAdam, Lookahead
+from optimization import RAdam
 from learner import Learner
 
 
@@ -70,7 +71,10 @@ class Experiment:
                 )
 
                 comment = f"{experiment_name}_freeze_embeddings_{freeze_embedding}".lower()
-                logger = SummaryWriter(self._log_path, comment=comment)
+                experiment_path = self._log_path + "/" + comment
+                if not os.path.exists(experiment_path):
+                    os.mkdir(experiment_path)
+                logger = SummaryWriter(experiment_path)
 
                 learner = Learner(
                     model=model,
