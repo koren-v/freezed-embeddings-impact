@@ -1,6 +1,5 @@
 # Do we need to freeze embeddings when fine-tuning our LM?
 
-___
 An experiment to check the impact of freezing embedding matrix on the validation metric depending on the number of 
 non-overlapping tokens between train and validation set.
 
