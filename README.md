@@ -3,7 +3,7 @@
 An experiment to check the impact of freezing embedding matrix on the validation metric depending on the number of 
 non-overlapping tokens between train and validation set.
 
-The experiment was run in the [colab notebook](https://medium.com/r?url=https%3A%2F%2Fcolab.research.google.com%2Fdrive%2F167cj0ahu5jtzpCpPvyD0oMdPMy2BzjN6%3Fusp%3Dsharing), 
+The experiment was run in the [colab notebook](https://colab.research.google.com/drive/167cj0ahu5jtzpCpPvyD0oMdPMy2BzjN6?usp=sharing),
 you can check the tensorboard logs there. There is more detailed explanation in the [article](). 
 The main results can be viewed on the following plot: 
 
